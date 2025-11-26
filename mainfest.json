@@ -1,0 +1,55 @@
+{
+  "manifest_version": 3,
+  "name": "Lemur DevTools Pro",
+  "description": "Advanced split-screen DevTools for Lemur/Chrome with proxy rewrites, DOM inspection, network logging, and runtime script analysis.",
+  "version": "1.0.0",
+
+  "permissions": [
+    "scripting",
+    "tabs",
+    "activeTab",
+    "storage",
+    "webRequest",
+    "webRequestBlocking",
+    "debugger"
+  ],
+
+  "host_permissions": [
+    "<all_urls>"
+  ],
+
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+
+  "action": {
+    "default_popup": "settings/settings.html",
+    "default_title": "Lemur DevTools Pro"
+  },
+
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content/inject.js"],
+      "run_at": "document_start"
+    }
+  ],
+
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "devtools/*",
+        "ai/*",
+        "icons/*"
+      ],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}
