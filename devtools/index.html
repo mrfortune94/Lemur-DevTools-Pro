@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Lemur DevTools Pro</title>
+    <link rel="stylesheet" href="devtools.css">
+</head>
+<body>
+
+<div id="header">
+    <h1>Lemur DevTools Pro</h1>
+    <button id="clearLogs">Clear</button>
+</div>
+
+<div id="main">
+    <div id="leftPanel">
+        <h2>DOM Snapshot</h2>
+        <pre id="domOutput">(Waiting for DOM...) </pre>
+
+        <h2>DOM Mutations</h2>
+        <pre id="mutationOutput"></pre>
+
+        <h2>Iframes</h2>
+        <pre id="iframeOutput"></pre>
+    </div>
+
+    <div id="rightPanel">
+        <h2>Network Logs</h2>
+        <pre id="networkOutput"></pre>
+
+        <h2>JS Runtime Hooks</h2>
+        <pre id="runtimeOutput"></pre>
+    </div>
+</div>
+
+<script src="devtools.js"></script>
+</body>
+</html>
