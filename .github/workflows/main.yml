@@ -1,0 +1,52 @@
+name: Build Chrome Extension (.crx)
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build-crx:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repo
+      uses: actions/checkout@v3
+
+    - name: Install zip
+      run: sudo apt-get update && sudo apt-get install -y zip openssl
+
+    - name: Create extension ZIP
+      run: |
+        mkdir -p dist
+        zip -r dist/LemurDevToolsPro.zip LemurDevToolsPro -x ".*" -x "*.pem"
+
+    - name: Write private key from GitHub Secret
+      run: |
+        echo "${{ secrets.CRX_PRIVATE_KEY }}" > key.pem
+
+    - name: Create CRX package
+      run: |
+        # Generate pubkey + signature
+        openssl pkcs8 -inform PEM -in key.pem -topk8 -nocrypt > key.dec
+        openssl rsa -in key.dec -pubout -out pubkey.pem
+        openssl dgst -sha1 -binary -sign key.dec dist/LemurDevToolsPro.zip > signature.bin
+        PUBKEY_HEX=$(xxd -p pubkey.pem | tr -d '\n')
+        SIG_HEX=$(xxd -p signature.bin | tr -d '\n')
+
+        # CRX header (version 2)
+        (
+          printf 'Cr24'                       # magic number
+          printf '\x02\x00\x00\x00'           # version 2
+          printf "$(printf "%08x" $(expr length $PUBKEY_HEX / 2) | sed 's/../\\x&/g')" # pubkey length
+          printf "$(printf "%08x" $(expr length $SIG_HEX / 2) | sed 's/../\\x&/g')"     # signature length
+          printf "$PUBKEY_HEX" | xxd -r -p
+          printf "$SIG_HEX" | xxd -r -p
+          cat dist/LemurDevToolsPro.zip
+        ) > dist/LemurDevToolsPro.crx
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: lemur-devtools-build
+        path: dist/*
