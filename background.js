@@ -7,27 +7,46 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         DEVTOOLS_ENABLED = msg.enabled;
         sendResponse({ ok: true, DEVTOOLS_ENABLED });
     }
+    
+    // Handle iframe fetching (from proxy.js)
+    if (msg.type === "fetch_iframe") {
+        fetchIframeContent(msg.url, msg.index, sender.tab.id);
+    }
 });
 
-// CORS REWRITE PROXY  (safe: only active when devtools enabled)
-chrome.webRequest.onHeadersReceived.addListener(
-    (details) => {
-        if (!DEVTOOLS_ENABLED) return {};
+// Fetch iframe content (from proxy.js)
+async function fetchIframeContent(url, index, tabId) {
+    try {
+        const res = await fetch(url, {
+            method: "GET",
+            mode: "cors",
+            credentials: "include"
+        });
 
-        let headers = details.responseHeaders || [];
+        const text = await res.text();
 
-        headers.push({ name: "Access-Control-Allow-Origin", value: "*" });
-        headers.push({ name: "Access-Control-Allow-Credentials", value: "true" });
-        headers.push({ name: "Access-Control-Allow-Headers", value: "*" });
-        headers.push({ name: "Access-Control-Allow-Methods", value: "*" });
+        chrome.tabs.sendMessage(tabId, {
+            type: "iframe_content",
+            payload: {
+                index,
+                src: url,
+                html: text
+            }
+        });
+    }
+    catch (err) {
+        chrome.tabs.sendMessage(tabId, {
+            type: "iframe_content",
+            payload: {
+                index,
+                src: url,
+                html: `[ERROR FETCHING IFRAME CONTENT]\n${err}`
+            }
+        });
+    }
+}
 
-        return { responseHeaders: headers };
-    },
-    { urls: ["<all_urls>"] },
-    ["blocking", "responseHeaders"]
-);
-
-// Network event logger
+// Network event logger (MV3 compatible - no blocking)
 chrome.webRequest.onCompleted.addListener(
     (info) => {
         if (!DEVTOOLS_ENABLED) return;
@@ -35,3 +54,6 @@ chrome.webRequest.onCompleted.addListener(
     },
     { urls: ["<all_urls>"] }
 );
+
+// Note: In Manifest V3, header modification requires declarativeNetRequest rules
+// The CORS proxy feature is simplified for MV3 compatibility

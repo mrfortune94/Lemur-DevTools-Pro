@@ -10,7 +10,6 @@
     "activeTab",
     "storage",
     "webRequest",
-    "webRequestBlocking",
     "debugger"
   ],
 
@@ -19,8 +18,7 @@
   ],
 
   "background": {
-    "service_worker": "background.js",
-    "type": "module"
+    "service_worker": "background.js"
   },
 
   "action": {
@@ -47,7 +45,8 @@
       "resources": [
         "devtools/*",
         "ai/*",
-        "icons/*"
+        "icons/*",
+        "content/*"
       ],
       "matches": ["<all_urls>"]
     }
