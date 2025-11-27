@@ -14,34 +14,62 @@ jobs:
       uses: actions/checkout@v4
 
     - name: Install dependencies
-      run: sudo apt-get update && sudo apt-get install -y zip openssl xxd
+      run: sudo apt-get update && sudo apt-get install -y zip openssl
 
     - name: Create extension ZIP
       run: |
         mkdir -p dist
-        zip -r dist/LemurDevToolsPro.zip LemurDevToolsPro -x "*.pem" -x ".*"
+        # Zip extension files from root (excluding git, pem, workflow files)
+        zip -r dist/LemurDevToolsPro.zip . \
+          -x "*.pem" -x ".*" -x ".git/*" -x ".github/*" -x "dist/*" -x "*.sh"
+        echo "ZIP file created:"
+        unzip -l dist/LemurDevToolsPro.zip | head -30
 
     - name: Write private key from GitHub Secret
       run: |
-        echo "${{ secrets.CRX_PRIVATE_KEY }}" > key.pem
+        if [ -z "${{ secrets.CRX_PRIVATE_KEY }}" ]; then
+          echo "CRX_PRIVATE_KEY secret not set. Generating temporary key for testing..."
+          openssl genrsa -out key.pem 2048
+        else
+          echo "${{ secrets.CRX_PRIVATE_KEY }}" > key.pem
+        fi
 
     - name: Create CRX package
       run: |
-        openssl pkcs8 -inform PEM -in key.pem -topk8 -nocrypt > key.dec
-        openssl rsa -in key.dec -pubout -out pubkey.pem
+        # Convert key and create signature
+        openssl pkcs8 -inform PEM -in key.pem -topk8 -nocrypt -out key.dec
+        openssl rsa -in key.dec -pubout -outform DER -out pubkey.der 2>/dev/null
         openssl dgst -sha1 -binary -sign key.dec dist/LemurDevToolsPro.zip > signature.bin
-        PUBKEY_HEX=$(xxd -p pubkey.pem | tr -d '\n')
-        SIG_HEX=$(xxd -p signature.bin | tr -d '\n')
-
-        (
+        
+        # Get lengths
+        PUBKEY_LEN=$(wc -c < pubkey.der | tr -d ' ')
+        SIG_LEN=$(wc -c < signature.bin | tr -d ' ')
+        
+        echo "Public key length: $PUBKEY_LEN bytes"
+        echo "Signature length: $SIG_LEN bytes"
+        
+        # Create CRX header and package (CRX2 format)
+        # Header: "Cr24" + version (2) + pubkey_len + sig_len + pubkey + sig + zip
+        {
           printf 'Cr24'
-          printf '\x02\x00\x00\x00'
-          printf "$(printf "%08x" $(expr length $PUBKEY_HEX / 2) | sed 's/../\\x&/g')"
-          printf "$(printf "%08x" $(expr length $SIG_HEX / 2) | sed 's/../\\x&/g')"
-          printf "$PUBKEY_HEX" | xxd -r -p
-          printf "$SIG_HEX" | xxd -r -p
+          printf "\\x02\\x00\\x00\\x00"
+          # Write pubkey_len as little-endian 32-bit
+          printf "\\x$(printf '%02x' $((PUBKEY_LEN & 0xFF)))"
+          printf "\\x$(printf '%02x' $(((PUBKEY_LEN >> 8) & 0xFF)))"
+          printf "\\x$(printf '%02x' $(((PUBKEY_LEN >> 16) & 0xFF)))"
+          printf "\\x$(printf '%02x' $(((PUBKEY_LEN >> 24) & 0xFF)))"
+          # Write sig_len as little-endian 32-bit
+          printf "\\x$(printf '%02x' $((SIG_LEN & 0xFF)))"
+          printf "\\x$(printf '%02x' $(((SIG_LEN >> 8) & 0xFF)))"
+          printf "\\x$(printf '%02x' $(((SIG_LEN >> 16) & 0xFF)))"
+          printf "\\x$(printf '%02x' $(((SIG_LEN >> 24) & 0xFF)))"
+          cat pubkey.der
+          cat signature.bin
           cat dist/LemurDevToolsPro.zip
-        ) > dist/LemurDevToolsPro.crx
+        } > dist/LemurDevToolsPro.crx
+        
+        echo "CRX file created:"
+        ls -la dist/
 
     - name: Upload build artifacts
       uses: actions/upload-artifact@v4

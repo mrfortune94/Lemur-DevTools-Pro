@@ -10,7 +10,6 @@
     "activeTab",
     "storage",
     "webRequest",
-    "webRequestBlocking",
     "debugger"
   ],
 
@@ -47,7 +46,8 @@
       "resources": [
         "devtools/*",
         "ai/*",
-        "icons/*"
+        "icons/*",
+        "content/*"
       ],
       "matches": ["<all_urls>"]
     }

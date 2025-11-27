@@ -9,25 +9,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     }
 });
 
-// CORS REWRITE PROXY  (safe: only active when devtools enabled)
-chrome.webRequest.onHeadersReceived.addListener(
-    (details) => {
-        if (!DEVTOOLS_ENABLED) return {};
-
-        let headers = details.responseHeaders || [];
-
-        headers.push({ name: "Access-Control-Allow-Origin", value: "*" });
-        headers.push({ name: "Access-Control-Allow-Credentials", value: "true" });
-        headers.push({ name: "Access-Control-Allow-Headers", value: "*" });
-        headers.push({ name: "Access-Control-Allow-Methods", value: "*" });
-
-        return { responseHeaders: headers };
-    },
-    { urls: ["<all_urls>"] },
-    ["blocking", "responseHeaders"]
-);
-
-// Network event logger
+// Network event logger (MV3 compatible - no blocking)
 chrome.webRequest.onCompleted.addListener(
     (info) => {
         if (!DEVTOOLS_ENABLED) return;
@@ -35,3 +17,6 @@ chrome.webRequest.onCompleted.addListener(
     },
     { urls: ["<all_urls>"] }
 );
+
+// Note: In Manifest V3, header modification requires declarativeNetRequest rules
+// The CORS proxy feature is simplified for MV3 compatibility
